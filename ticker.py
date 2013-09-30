@@ -1,6 +1,10 @@
 import urllib
 import json
 from PyQt4.Qt import QThread
+from urllib import FancyURLopener
+
+class TrackerOpener(FancyURLopener):
+   version = 'Mozilla/5.0 (Windows; U; Windows NT 5.1; it; rv:1.8.1.11) Gecko/20071127 Firefox/2.0.0.11'
 
 class Ticker(QThread):
     def __init__(self, source, currency, url, fields, interval, callback):
@@ -15,7 +19,8 @@ class Ticker(QThread):
         self.sleep(5)   # give GUI time to initialize
         while True:
             try:
-                f = urllib.urlopen(self.url)
+                myopener = TrackerOpener()
+                f = myopener.open(self.url)
                 data = f.read()
                 feed = json.loads(data)
                 rate = feed
