@@ -61,9 +61,9 @@ class Controller:
         self.current_address = self.bitcoind.getnewaddress("Point of Sale")
         self.merchant_gui.update_status("Looking for a transaction to %s..." %
                 self.current_address)
-        self.expected_amount = '%s BTC' % amount_str
 
         amount_str = self.format_btc_amount(amount)
+        self.expected_amount = '%s BTC' % amount_str
         imgdata = self.create_img_data(self.current_address, amount_str)
         js = 'show_payment_info("%s", %s, "%s", "%s")' % \
                 (self.expected_amount, conversion,
