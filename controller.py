@@ -1,6 +1,7 @@
 import qrencode
 import urllib
 import re
+import os
 from StringIO import StringIO
 from PIL import Image
 from PyQt4 import QtGui
@@ -13,6 +14,7 @@ class Controller:
     def __init__(self, settings):
         self.bitcoind = AuthServiceProxy(settings['rpc_url'])
         self.current_address = ""
+        self.expected_amount = ""
         self.exchange_rate = 0.0
         self.exchange_rate_source = ""
         self.currency = settings['exchange_rate_ticker']['currency']
@@ -33,7 +35,7 @@ class Controller:
 
         self.merchant_gui = MerchantGUI(self, self.currency)
         self.merchant_gui.show()
-        self.customer_display = CustomerDisplay('data/customer_display.html', self.single_screen_mode)
+        self.customer_display = CustomerDisplay(os.environ['POS'] + '/data/customer_display.html', self.single_screen_mode)
         if not self.single_screen_mode:
             self.customer_display.show()
         self.app.exec_()
@@ -59,11 +61,12 @@ class Controller:
         self.current_address = self.bitcoind.getnewaddress("Point of Sale")
         self.merchant_gui.update_status("Looking for a transaction to %s..." %
                 self.current_address)
+        self.expected_amount = '%s BTC' % amount_str
 
         amount_str = self.format_btc_amount(amount)
         imgdata = self.create_img_data(self.current_address, amount_str)
         js = 'show_payment_info("%s", %s, "%s", "%s")' % \
-                ('%s BTC' % amount_str, conversion,
+                (self.expected_amount, conversion,
                         self.current_address, imgdata)
 
         self.customer_display.evaluate_java_script(js)
@@ -99,12 +102,14 @@ class Controller:
         if re.search("^[a-f0-9]*$", txid) == None: return
 
         tx_info = self.bitcoind.gettransaction(txid)
-        output_addresses = []
+        address_found = False
         for detail in tx_info['details']:
-            output_addresses.append(detail['address'])
-        if self.current_address not in output_addresses: return
+            if self.current_address == detail['address']:
+                amount_received = detail['amount']
+                address_found = True
+        if not address_found: return
 
-        msg = "Transaction to %s received." % self.current_address
+        msg = "Transaction to %s with amount %s (of %s expected) received." % (self.current_address, amount_received, self.expected_amount)
         (from_green_address, green_address_msg) = self.green_address_check(txid)
         if from_green_address: msg += " " + green_address_msg
 
